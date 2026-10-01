@@ -1,0 +1,94 @@
+spring:
+  application:
+    name: high-rps-api
+  threads:
+    virtual:
+      # Every request (and @Async/@Scheduled work) runs on a virtual thread: blocking I/O to
+      # DynamoDB/Redis/SQS no longer ties up a platform thread, so "threads.max" stops being the ceiling.
+      enabled: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      ssl:
+        enabled: ${REDIS_SSL:false}
+      # A cache that answers slowly is worse than no cache: fail fast and fall through to DynamoDB.
+      timeout: 250ms
+      connect-timeout: 500ms
+  jackson:
+    default-property-inclusion: non_null
+  mvc:
+    problemdetails:
+      enabled: true
+  lifecycle:
+    # Must be shorter than the ECS stopTimeout so in-flight requests drain before SIGKILL.
+    timeout-per-shutdown-phase: 25s
+
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+  compression:
+    enabled: true
+    min-response-size: 1KB
+    mime-types: application/json,application/problem+json
+  tomcat:
+    # With virtual threads the limiting factors are connections and downstream capacity, not threads.
+    max-connections: 20000
+    accept-count: 2000
+    connection-timeout: 5s
+    # Must exceed the ALB idle timeout (60s) or the ALB may reuse a connection Tomcat just closed -> 502s.
+    keep-alive-timeout: 65s
+    max-keep-alive-requests: 10000
+
+logging:
+  level:
+    # Caffeine logs a full stack trace for every failed async load/refresh. ProductService already counts
+    # failures (products.load metric) and logs one line per id per failure window, so silence the duplicate.
+    com.github.benmanes.caffeine: error
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  health:
+    # Redis is an optimisation: an outage must not take every instance out of the load balancer.
+    # Readiness only reflects this instance's own state (the default readiness group).
+    redis:
+      enabled: false
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      # Averages hide the pain. Histograms give accurate p95/p99 aggregated across instances.
+      percentiles-histogram:
+        http.server.requests: true
+      slo:
+        http.server.requests: 10ms,50ms,100ms,250ms,500ms,1s
+
+app:
+  aws:
+    region: ${AWS_REGION:us-east-1}
+    products-table: ${PRODUCTS_TABLE:products}
+    orders-table: ${ORDERS_TABLE:orders}
+    order-events-queue: ${ORDER_EVENTS_QUEUE:order-events}
+    max-connections: ${AWS_MAX_CONNECTIONS:200}
+  cache:
+    local-max-size: 100000
+    local-ttl: 10s
+    local-max-stale: 5m
+    redis-ttl: 5m
+    redis-ttl-jitter: 0.15
+    not-found-ttl: 5s
+    failure-ttl: 1s
+  http:
+    product-max-age: 30s
+  orders:
+    consumer-enabled: ${ORDERS_CONSUMER_ENABLED:true}
+    consumer-pollers: 2
+    wait-time-seconds: 10

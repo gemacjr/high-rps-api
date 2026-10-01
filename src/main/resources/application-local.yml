@@ -1,0 +1,19 @@
+# LocalStack (DynamoDB + SQS) and Redis from docker-compose.yml
+spring:
+  data:
+    redis:
+      port: ${REDIS_PORT:6395}
+
+server:
+  port: ${PORT:8099}
+
+app:
+  aws:
+    endpoint: ${AWS_ENDPOINT_URL:http://localhost:4600}
+    # LocalStack emulates DynamoDB/SQS in one Python process and is far slower than the real services
+    # under load. Keep the tight production timeouts (500ms/2s) out of local load tests.
+    api-call-attempt-timeout: 3s
+    api-call-timeout: 6s
+  seed:
+    enabled: true
+    products: 1000

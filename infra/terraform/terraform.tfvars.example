@@ -1,0 +1,7 @@
+region             = "us-east-1"
+single_nat_gateway = true
+min_tasks          = 2
+max_tasks          = 20
+redis_node_type    = "cache.t4g.small"
+# certificate_arn  = "arn:aws:acm:us-east-1:123456789012:certificate/..."
+# alarm_topic_arn  = "arn:aws:sns:us-east-1:123456789012:alerts"

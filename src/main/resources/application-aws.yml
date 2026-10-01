@@ -1,0 +1,6 @@
+# Running in ECS Fargate. Values come from the task definition (see infra/terraform/ecs.tf).
+logging:
+  structured:
+    format:
+      # One JSON object per line: CloudWatch Logs Insights can query fields directly.
+      console: ecs

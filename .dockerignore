@@ -1,0 +1,8 @@
+.gradle
+.idea
+.remember
+build
+infra
+loadtest
+localstack
+*.md
